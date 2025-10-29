@@ -102,6 +102,24 @@ tqdm>=4.64.0
 # ============================================================================
 
 # ============================================================================
+# DESKTOP APP BUILD
+# ============================================================================
+
+# PyInstaller: Erstellt standalone executables
+# - Benötigt nur für das Bauen der Desktop-App
+# - Nicht erforderlich für normale Python-Nutzung
+pyinstaller>=5.0.0
+
+# ============================================================================
+# PERFORMANCE OPTIMIZATION (Optional)
+# ============================================================================
+
+# CuPy: GPU-beschleunigte NumPy-Alternative (NVIDIA GPU erforderlich)
+# - Deutlicher Speedup für große TIFFs
+# - Nur mit CUDA-fähiger GPU sinnvoll
+# cupy-cuda11x>=11.0.0  # Uncomment if you have NVIDIA GPU with CUDA 11.x
+
+# ============================================================================
 # VERSIONS-PINNING FÜR REPRODUZIERBARKEIT
 # ============================================================================
 #
@@ -112,5 +130,6 @@ tqdm>=4.64.0
 # Pillow==10.0.0
 # matplotlib==3.7.2
 # tqdm==4.65.0
+# pyinstaller==5.13.0
 #
 # ============================================================================
