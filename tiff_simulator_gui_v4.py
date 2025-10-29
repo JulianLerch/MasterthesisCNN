@@ -147,7 +147,7 @@ class TIFFSimulatorGUI_V4:
 
         # ===== TIME SERIES PARAMETERS =====
         self.t_poly = tk.DoubleVar(value=60.0)
-        self.d_initial = tk.DoubleVar(value=4.0)
+        self.d_initial = tk.DoubleVar(value=0.24)  # KORRIGIERT: Realistische Werte!
         self.num_frames = tk.IntVar(value=100)
         self.frame_rate = tk.DoubleVar(value=20.0)
         self.exposure_substeps = tk.IntVar(value=3)
@@ -460,11 +460,11 @@ class TIFFSimulatorGUI_V4:
         d_frame = tk.Frame(time_frame)
         d_frame.pack(fill=tk.X, pady=2)
         tk.Label(d_frame, text="D_initial [µm²/s]:", width=22, anchor=tk.W).pack(side=tk.LEFT)
-        d_spin = ttk.Spinbox(d_frame, from_=0.01, to=10.0, increment=0.1,
+        d_spin = ttk.Spinbox(d_frame, from_=0.01, to=2.0, increment=0.01,
                    textvariable=self.d_initial, width=10,
-                   format='%.2f', command=self._update_d_estimate)
+                   format='%.3f', command=self._update_d_estimate)
         d_spin.pack(side=tk.LEFT, padx=5)
-        ToolTip(d_spin, "Initialer Diffusionskoeffizient\nTypisch: 3-5 µm²/s für Proteine")
+        ToolTip(d_spin, "Initialer Diffusionskoeffizient (t=0 min)\nRealistische Werte: 0.15-0.30 µm²/s\nLiteratur: D₀ ≈ 0.24 µm²/s (2.4e-13 m²/s)")
 
         # Exposure substeps
         sub_frame = tk.Frame(time_frame)
