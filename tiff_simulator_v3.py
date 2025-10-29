@@ -375,7 +375,21 @@ class TrajectoryGenerator:
     def generate_trajectory(self, start_pos: Tuple[float, float, float],
                            num_frames: int,
                            diffusion_type: str = "normal") -> np.ndarray:
-        """Generiert eine 3D-Trajektorie."""
+        """
+        Generiert eine 3D-Trajektorie.
+
+        Physikalisch korrekte Implementation der Brownschen Bewegung:
+
+        Für 3D normale Diffusion:
+            σ = √(2 * D * Δt)  [pro Dimension]
+            MSD_total = 6 * D * Δt  [über alle 3 Dimensionen]
+
+        Für anomale Diffusion (Subdiffusion):
+            σ = √(2 * D * (Δt)^α)  mit α < 1
+
+        Für confined Diffusion:
+            Zusätzliche Rückstellkraft zum Startpunkt (harmonisches Potential)
+        """
 
         D = self.D_values[diffusion_type]
         trajectory = np.zeros((num_frames, 3), dtype=np.float32)
@@ -384,17 +398,28 @@ class TrajectoryGenerator:
         # Anomaler Exponent für Subdiffusion
         alpha = 0.7 if diffusion_type == "subdiffusion" else 1.0
 
+        # Superdiffusion hat alpha > 1
+        if diffusion_type == "superdiffusion":
+            alpha = 1.3
+
         for i in range(1, num_frames):
-            # Mean Square Displacement
+            # Standardabweichung pro Dimension (physikalisch korrekt für 3D!)
+            # σ = √(2 * D * Δt^α)
+            sigma_per_dim = np.sqrt(2.0 * D * (self.dt ** alpha))
+
+            # Brownsche Schritte (3D: jede Dimension unabhängig!)
+            step = np.random.normal(0, sigma_per_dim, size=3).astype(np.float32)
+
+            # Confined Diffusion: Rückstellkraft zum Zentrum
             if diffusion_type == "confined":
-                msd = 2 * D * self.dt
-                drift = -0.1 * (trajectory[i-1] - start_pos)
+                # Harmonisches Potential: F = -k * r
+                # k = D / L² wobei L = charakteristische Länge
+                confinement_length = 0.5  # µm (konfigurierbarer Radius)
+                k = D / (confinement_length ** 2)
+                drift = -k * self.dt * (trajectory[i-1] - start_pos)
             else:
-                msd = 2 * D * (self.dt ** alpha)
                 drift = np.zeros(3, dtype=np.float32)
 
-            # Brownsche Schritte
-            step = np.random.normal(0, np.sqrt(msd), size=3).astype(np.float32)
             trajectory[i] = trajectory[i-1] + step + drift
 
         return trajectory
