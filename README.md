@@ -1,0 +1,2 @@
+# MasterthesisCNN
+NeuralNetworkStuff
