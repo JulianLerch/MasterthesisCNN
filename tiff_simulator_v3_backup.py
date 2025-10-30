@@ -1,18 +1,18 @@
-"""
-🔬 HYPERREALISTISCHES TIFF-SIMULATIONSSYSTEM V3.0
+﻿"""
+ðŸ”¬ HYPERREALISTISCHES TIFF-SIMULATIONSSYSTEM V3.0
 =================================================
 
-Wissenschaftlich präzise Simulation von Single-Molecule Tracking Daten
-für hochauflösende Fluoreszenzmikroskopie.
+Wissenschaftlich prÃ¤zise Simulation von Single-Molecule Tracking Daten
+fÃ¼r hochauflÃ¶sende Fluoreszenzmikroskopie.
 
 Physikalische Grundlagen:
 -------------------------
-- Point Spread Function (PSF): 2D Gaußsche Approximation
-- Diffusion: Brownsche Bewegung mit zeitabhängigem D(t)
+- Point Spread Function (PSF): 2D GauÃŸsche Approximation
+- Diffusion: Brownsche Bewegung mit zeitabhÃ¤ngigem D(t)
 - Astigmatismus: Elliptische PSF-Deformation als Funktion von z
-- Photon Noise: Poisson-Statistik für realistische Bildgebung
+- Photon Noise: Poisson-Statistik fÃ¼r realistische Bildgebung
 
-Autor: Generiert für Masterthesis
+Autor: Generiert fÃ¼r Masterthesis
 Version: 3.0 - Oktober 2025
 Lizenz: MIT
 """
@@ -41,9 +41,9 @@ class DetectorPreset:
     background_std : float
         Standardabweichung des Backgrounds [counts]
     pixel_size_um : float
-        Physikalische Pixelgröße [µm]
+        Physikalische PixelgrÃ¶ÃŸe [Âµm]
     fwhm_um : float
-        Full Width at Half Maximum der PSF [µm]
+        Full Width at Half Maximum der PSF [Âµm]
     """
     name: str
     max_intensity: float
@@ -69,7 +69,18 @@ TDI_PRESET = DetectorPreset(
         "detector_type": "TDI Line Scan Camera",
         "numerical_aperture": 1.2,
         "wavelength_nm": 580,
-        "quantum_efficiency": 0.85
+        "quantum_efficiency": 0.85,
+        # ZusÃ¤tzliche Simulationsparameter
+        "read_noise_std": 1.2,                 # [counts]
+        "spot_intensity_sigma": 0.25,          # Lognormal-Jitter pro Spot (Multiplikativ)
+        "frame_jitter_sigma": 0.10,            # Lognormal-Jitter pro Frame
+        "on_mean_frames": 4.0,                  # mittlere ON-Dauer [frames]
+        "off_mean_frames": 6.0,                 # mittlere OFF-Dauer [frames]
+        "bleach_prob_per_frame": 0.002,         # Bleach-Wahrscheinlichkeit je Frame
+        "z_amp_um": 0.7,                        # IntensitÃ¤tsabfall-Skala in z [Âµm]
+        "z_max_um": 0.6,                        # Begrenzung des z-Bereichs [µm]
+        "astig_z0_um": 0.5,
+        "astig_coeffs": {"A_x": 1.0, "B_x": 0.0, "A_y": -0.5, "B_y": 0.0}
     }
 )
 
@@ -84,45 +95,56 @@ TETRASPECS_PRESET = DetectorPreset(
         "detector_type": "sCMOS Camera",
         "numerical_aperture": 1.2,
         "wavelength_nm": 580,
-        "quantum_efficiency": 0.90
+        "quantum_efficiency": 0.90,
+        # ZusÃ¤tzliche Simulationsparameter
+        "read_noise_std": 1.8,
+        "spot_intensity_sigma": 0.25,
+        "frame_jitter_sigma": 0.12,
+        "on_mean_frames": 5.0,
+        "off_mean_frames": 7.0,
+        "bleach_prob_per_frame": 0.0015,
+        "z_amp_um": 0.7,
+        "z_max_um": 0.6,
+        "astig_z0_um": 0.5,
+        "astig_coeffs": {"A_x": 1.0, "B_x": 0.0, "A_y": -0.5, "B_y": 0.0}
     }
 )
 
 
 # ============================================================================
-# ZEITABHÄNGIGE DIFFUSIONSKOEFFIZIENTEN
+# ZEITABHÃ„NGIGE DIFFUSIONSKOEFFIZIENTEN
 # ============================================================================
 
 def get_time_dependent_D(t_poly_min: float, D_initial: float, 
                          diffusion_type: str = "normal") -> float:
     """
-    Berechnet zeitabhängigen Diffusionskoeffizienten während der 
+    Berechnet zeitabhÃ¤ngigen Diffusionskoeffizienten wÃ¤hrend der 
     Polymerisationsphase basierend auf experimentellen Daten.
     
     Physikalisches Modell:
     ----------------------
-    D(t) = D₀ · exp(-t/τ) · f(t)
+    D(t) = Dâ‚€ Â· exp(-t/Ï„) Â· f(t)
     
     wobei:
-    - D₀: Initialer Diffusionskoeffizient [µm²/s]
-    - τ: Charakteristische Zeitkonstante (40 min)
-    - f(t): Zusätzliche Reduktionsfunktion für t > 90 min
+    - Dâ‚€: Initialer Diffusionskoeffizient [ÂµmÂ²/s]
+    - Ï„: Charakteristische Zeitkonstante (40 min)
+    - f(t): ZusÃ¤tzliche Reduktionsfunktion fÃ¼r t > 90 min
     
     Die starke Reduktion von D bei langen Polymerisationszeiten reflektiert
-    die zunehmende Netzwerkdichte und Viskosität des Hydrogels.
+    die zunehmende Netzwerkdichte und ViskositÃ¤t des Hydrogels.
     
     Parameters:
     -----------
     t_poly_min : float
         Polymerisationszeit [min]
     D_initial : float
-        Initialer D-Wert bei t=0 [µm²/s], typisch 3-5 µm²/s
+        Initialer D-Wert bei t=0 [ÂµmÂ²/s], typisch 3-5 ÂµmÂ²/s
     diffusion_type : str
         "normal", "subdiffusion", "superdiffusion", "confined"
     
     Returns:
     --------
-    float : Zeitabhängiger D-Wert [µm²/s]
+    float : ZeitabhÃ¤ngiger D-Wert [ÂµmÂ²/s]
     
     Referenzen:
     -----------
@@ -134,7 +156,7 @@ def get_time_dependent_D(t_poly_min: float, D_initial: float,
     tau = 40.0  # Charakteristische Zeitkonstante [min]
     reduction_factor = np.exp(-t_poly_min / tau)
     
-    # Zusätzliche Reduktion ab 90 min (starke Vernetzung)
+    # ZusÃ¤tzliche Reduktion ab 90 min (starke Vernetzung)
     if t_poly_min >= 90:
         extra_reduction = 0.5 * np.exp(-(t_poly_min - 90) / 30.0)
         reduction_factor *= extra_reduction
@@ -143,16 +165,16 @@ def get_time_dependent_D(t_poly_min: float, D_initial: float,
     
     # Diffusionstyp-spezifische Modifikationen
     if diffusion_type == "subdiffusion":
-        # Subdiffusion: Zusätzliche Verlangsamung
+        # Subdiffusion: ZusÃ¤tzliche Verlangsamung
         D_base *= 0.6
     elif diffusion_type == "superdiffusion":
-        # Superdiffusion: Leichte Erhöhung (selten)
+        # Superdiffusion: Leichte ErhÃ¶hung (selten)
         D_base *= 1.3
     elif diffusion_type == "confined":
         # Confined: Stark reduziert
         D_base *= 0.3
     
-    return max(D_base, 0.001)  # Minimum: 0.001 µm²/s
+    return max(D_base, 0.001)  # Minimum: 0.001 ÂµmÂ²/s
 
 
 def get_diffusion_fractions(t_poly_min: float) -> Dict[str, float]:
@@ -160,7 +182,7 @@ def get_diffusion_fractions(t_poly_min: float) -> Dict[str, float]:
     Berechnet Fraktionen verschiedener Diffusionstypen als Funktion der Zeit.
     
     Mit zunehmender Polymerisation steigt der Anteil von Sub- und Confined
-    Diffusion, während normale Brownsche Bewegung abnimmt.
+    Diffusion, wÃ¤hrend normale Brownsche Bewegung abnimmt.
     
     Parameters:
     -----------
@@ -169,10 +191,10 @@ def get_diffusion_fractions(t_poly_min: float) -> Dict[str, float]:
     
     Returns:
     --------
-    Dict[str, float] : Fraktionen für jeden Diffusionstyp
+    Dict[str, float] : Fraktionen fÃ¼r jeden Diffusionstyp
     """
     
-    # Zeitabhängige Fraktionen (Summe = 1.0)
+    # ZeitabhÃ¤ngige Fraktionen (Summe = 1.0)
     if t_poly_min < 10:
         fractions = {
             "normal": 0.95,
@@ -220,35 +242,41 @@ class PSFGenerator:
     """
     Generiert physikalisch realistische Point Spread Functions (PSF).
     
-    Die PSF wird als 2D Gaußfunktion modelliert:
+    Die PSF wird als 2D GauÃŸfunktion modelliert:
     
-    I(x,y) = I₀ · exp(-[(x-x₀)²/σₓ² + (y-y₀)²/σᵧ²]/2)
+    I(x,y) = Iâ‚€ Â· exp(-[(x-xâ‚€)Â²/Ïƒâ‚“Â² + (y-yâ‚€)Â²/Ïƒáµ§Â²]/2)
     
     wobei:
-    - I₀: Peak-Intensität [counts]
-    - σₓ, σᵧ: Standardabweichungen in x,y [px]
-    - Beziehung: FWHM = 2√(2ln2) · σ ≈ 2.355 · σ
+    - Iâ‚€: Peak-IntensitÃ¤t [counts]
+    - Ïƒâ‚“, Ïƒáµ§: Standardabweichungen in x,y [px]
+    - Beziehung: FWHM = 2âˆš(2ln2) Â· Ïƒ â‰ˆ 2.355 Â· Ïƒ
     
-    Für Astigmatismus (z-abhängig):
-    σₓ(z) = σ₀ · √(1 + (z/z₀)²)
-    σᵧ(z) = σ₀ · √(1 - (z/z₀)²)
+    FÃ¼r Astigmatismus (z-abhÃ¤ngig):
+    Ïƒâ‚“(z) = Ïƒâ‚€ Â· âˆš(1 + (z/zâ‚€)Â²)
+    Ïƒáµ§(z) = Ïƒâ‚€ Â· âˆš(1 - (z/zâ‚€)Â²)
     """
     
     def __init__(self, detector: DetectorPreset, astigmatism: bool = False):
         self.detector = detector
         self.astigmatism = astigmatism
         
-        # Konvertiere FWHM zu σ (Standardabweichung)
-        # FWHM = 2.355 * σ
+        # Konvertiere FWHM zu Ïƒ (Standardabweichung)
+        # FWHM = 2.355 * Ïƒ
         fwhm_px = detector.fwhm_um / detector.pixel_size_um
         self.sigma_px = fwhm_px / 2.355
-        # Numerischer Mindestwert für Sigma, um Instabilitäten zu vermeiden
+        # Numerischer Mindestwert fÃ¼r Sigma, um InstabilitÃ¤ten zu vermeiden
         self._sigma_eps = 1e-6
         
         # Astigmatismus-Parameter
         if astigmatism:
-            # z₀: charakteristische Länge für Astigmatismus [µm]
-            self.z0_um = 0.5
+            # Load calibration from detector metadata
+            meta = getattr(detector, 'metadata', {}) or {}
+            self.z0_um = float(meta.get("astig_z0_um", 0.5))
+            coeffs = meta.get("astig_coeffs", {}) or {}
+            self.Ax = float(coeffs.get("A_x", 1.0))
+            self.Bx = float(coeffs.get("B_x", 0.0))
+            self.Ay = float(coeffs.get("A_y", -0.5))
+            self.By = float(coeffs.get("B_y", 0.0))
     
     def generate_psf(self, center_x: float, center_y: float, 
                      intensity: float, z_um: float = 0.0,
@@ -261,11 +289,11 @@ class PSFGenerator:
         center_x, center_y : float
             Spot-Position [px]
         intensity : float
-            Peak-Intensität [counts]
+            Peak-IntensitÃ¤t [counts]
         z_um : float
-            z-Position für Astigmatismus [µm]
+            z-Position fÃ¼r Astigmatismus [Âµm]
         image_size : Tuple[int, int]
-            Bildgröße (height, width) [px]
+            BildgrÃ¶ÃŸe (height, width) [px]
         
         Returns:
         --------
@@ -274,26 +302,26 @@ class PSFGenerator:
         
         height, width = image_size
         
-        # Berechne σₓ, σᵧ basierend auf z-Position
+        # Berechne sigma_x, sigma_y basierend auf z-Position
         if self.astigmatism and z_um != 0.0:
-            # Astigmatische PSF
+            # Astigmatische PSF mit kalibrierten Koeffizienten
             z_norm = z_um / self.z0_um
-            sigma_x = self.sigma_px * np.sqrt(1 + z_norm**2)
-            # Stabilisiere den Ausdruck für sigma_y, damit er stets reell/positiv bleibt
-            sigma_y_term = np.maximum(1 - 0.5 * (z_norm**2), self._sigma_eps)
-            sigma_y = self.sigma_px * np.sqrt(sigma_y_term)
+            term_x = max(1.0 + getattr(self, 'Ax', 1.0) * (z_norm**2) + getattr(self, 'Bx', 0.0) * (z_norm**4), self._sigma_eps)
+            term_y = max(1.0 + getattr(self, 'Ay', -0.5) * (z_norm**2) + getattr(self, 'By', 0.0) * (z_norm**4), self._sigma_eps)
+            sigma_x = self.sigma_px * np.sqrt(term_x)
+            sigma_y = self.sigma_px * np.sqrt(term_y)
         else:
             # Symmetrische PSF
             sigma_x = sigma_y = self.sigma_px
 
-        # Untere Schranke für numerische Stabilität
+        # Untere Schranke fÃ¼r numerische StabilitÃ¤t
         sigma_x = max(sigma_x, self._sigma_eps)
         sigma_y = max(sigma_y, self._sigma_eps)
         
         # Erstelle Koordinaten-Meshgrid
         y, x = np.meshgrid(np.arange(height), np.arange(width), indexing='ij')
         
-        # 2D Gaußfunktion
+        # 2D GauÃŸfunktion
         psf = intensity * np.exp(
             -(((x - center_x)**2 / (2 * sigma_x**2)) +
               ((y - center_y)**2 / (2 * sigma_y**2)))
@@ -302,7 +330,7 @@ class PSFGenerator:
         return psf
     
     def get_metadata(self) -> Dict:
-        """Gibt PSF-Metadata zurück"""
+        """Gibt PSF-Metadata zurÃ¼ck"""
         return {
             "fwhm_um": self.detector.fwhm_um,
             "sigma_px": self.sigma_px,
@@ -323,17 +351,17 @@ class TrajectoryGenerator:
     
     Brownsche Bewegung (normale Diffusion):
     ---------------------------------------
-    Δr² = 2·d·D·Δt
+    Î”rÂ² = 2Â·dÂ·DÂ·Î”t
     
     wobei:
-    - d: Dimensionalität (2 für 2D, 3 für 3D)
-    - D: Diffusionskoeffizient [µm²/s]
-    - Δt: Zeitintervall [s]
+    - d: DimensionalitÃ¤t (2 fÃ¼r 2D, 3 fÃ¼r 3D)
+    - D: Diffusionskoeffizient [ÂµmÂ²/s]
+    - Î”t: Zeitintervall [s]
     
     Subdiffusion (Anomale Diffusion):
     ----------------------------------
-    Δr² = 2·d·D·Δt^α
-    mit α < 1 (typisch 0.6-0.8)
+    Î”rÂ² = 2Â·dÂ·DÂ·Î”t^Î±
+    mit Î± < 1 (typisch 0.6-0.8)
     """
     
     def __init__(self, D_initial: float, t_poly_min: float, 
@@ -346,7 +374,7 @@ class TrajectoryGenerator:
         # Hole Diffusionsfraktionen
         self.fractions = get_diffusion_fractions(t_poly_min)
         
-        # Berechne D-Werte für jeden Typ
+        # Berechne D-Werte fÃ¼r jeden Typ
         self.D_values = {
             dtype: get_time_dependent_D(t_poly_min, D_initial, dtype)
             for dtype in self.fractions.keys()
@@ -361,7 +389,7 @@ class TrajectoryGenerator:
         Parameters:
         -----------
         start_pos : Tuple[float, float, float]
-            Startposition (x, y, z) [µm]
+            Startposition (x, y, z) [Âµm]
         num_frames : int
             Anzahl Frames
         diffusion_type : str
@@ -369,14 +397,14 @@ class TrajectoryGenerator:
         
         Returns:
         --------
-        np.ndarray : Trajektorie (num_frames, 3) [µm]
+        np.ndarray : Trajektorie (num_frames, 3) [Âµm]
         """
         
         D = self.D_values[diffusion_type]
         trajectory = np.zeros((num_frames, 3))
         trajectory[0] = start_pos
         
-        # Anomaler Exponent für Subdiffusion
+        # Anomaler Exponent fÃ¼r Subdiffusion
         alpha = 0.7 if diffusion_type == "subdiffusion" else 1.0
         
         for i in range(1, num_frames):
@@ -384,7 +412,7 @@ class TrajectoryGenerator:
             if diffusion_type == "confined":
                 # Confined: Begrenzter Raum
                 msd = 2 * D * self.dt
-                # Rückstellkraft zum Zentrum
+                # RÃ¼ckstellkraft zum Zentrum
                 drift = -0.1 * (trajectory[i-1] - start_pos)
             else:
                 # Normale/Sub/Super Diffusion
@@ -412,16 +440,16 @@ class TrajectoryGenerator:
         trajectories = []
         
         for _ in range(num_spots):
-            # Wähle Diffusionstyp basierend auf Fraktionen
+            # WÃ¤hle Diffusionstyp basierend auf Fraktionen
             dtype = np.random.choice(
                 list(self.fractions.keys()),
                 p=list(self.fractions.values())
             )
             
-            # Zufällige Startposition (in µm, innerhalb des Bildes)
+            # ZufÃ¤llige Startposition (in Âµm, innerhalb des Bildes)
             start_x = np.random.uniform(0.2 * width, 0.8 * width) * self.pixel_size_um
             start_y = np.random.uniform(0.2 * height, 0.8 * height) * self.pixel_size_um
-            start_z = np.random.uniform(-0.5, 0.5)  # z in [-0.5, 0.5] µm
+            start_z = np.random.uniform(-0.5, 0.5)  # z in [-0.5, 0.5] Âµm
             
             trajectory = self.generate_trajectory(
                 (start_x, start_y, start_z),
@@ -438,7 +466,7 @@ class TrajectoryGenerator:
         return trajectories
     
     def get_metadata(self) -> Dict:
-        """Gibt Trajektorien-Metadata zurück"""
+        """Gibt Trajektorien-Metadata zurÃ¼ck"""
         return {
             "D_initial": self.D_initial,
             "t_poly_min": self.t_poly_min,
@@ -473,11 +501,11 @@ class BackgroundGenerator:
         # Basis-Background (Poisson-Rauschen)
         background = np.random.poisson(self.mean, size=(height, width)).astype(float)
         
-        # Gaußsches Rauschen
+        # GauÃŸsches Rauschen
         noise = np.random.normal(0, self.std, size=(height, width))
         background += noise
         
-        # Leichter Gradient (simuliert ungleichmäßige Beleuchtung)
+        # Leichter Gradient (simuliert ungleichmÃ¤ÃŸige Beleuchtung)
         y, x = np.meshgrid(np.linspace(-1, 1, height), 
                           np.linspace(-1, 1, width), 
                           indexing='ij')
@@ -488,12 +516,60 @@ class BackgroundGenerator:
 
 
 # ============================================================================
+# PHOTOPHYSICS - Blinking & Bleaching
+# ============================================================================
+
+class PhotoPhysics:
+    """
+    Einfache 2-Zustands-Photophysik (ON/OFF) mit Bleaching.
+
+    - ON/OFF-Dauern ~ geometrisch (entspricht exponential in kontinuierlicher Zeit)
+    - Bleaching: pro ON-Frame mit kleiner Wahrscheinlichkeit permanent OFF
+    """
+
+    def __init__(self, on_mean_frames: float = 4.0, off_mean_frames: float = 6.0,
+                 bleach_prob_per_frame: float = 0.002):
+        self.on_mean = max(on_mean_frames, 1e-3)
+        self.off_mean = max(off_mean_frames, 1e-3)
+        self.bleach_prob = max(bleach_prob_per_frame, 0.0)
+
+    def _sample_duration(self, mean_frames: float) -> int:
+        # Geometric(p) with mean = 1/p -> p = 1/mean
+        p = 1.0 / max(mean_frames, 1.0)
+        # numpy geometric returns k >= 1
+        return int(np.random.geometric(p))
+
+    def generate_on_mask(self, num_spots: int, num_frames: int) -> np.ndarray:
+        mask = np.zeros((num_spots, num_frames), dtype=bool)
+        p0_on = self.on_mean / (self.on_mean + self.off_mean)
+        for s in range(num_spots):
+            t = 0
+            state_on = np.random.rand() < p0_on
+            bleached = False
+            while t < num_frames:
+                if bleached:
+                    break
+                duration = self._sample_duration(self.on_mean if state_on else self.off_mean)
+                end = min(num_frames, t + duration)
+                if state_on:
+                    mask[s, t:end] = True
+                    # Bleaching mit Wahrscheinlichkeit Ã¼ber die Dauer
+                    if np.random.rand() < (1.0 - (1.0 - self.bleach_prob) ** (end - t)):
+                        bleached = True
+                        break
+                # Toggle Zustand und weiter
+                t = end
+                state_on = not state_on
+        return mask
+
+
+# ============================================================================
 # HAUPTSIMULATOR
 # ============================================================================
 
 class TIFFSimulator:
     """
-    Hauptklasse für TIFF-Simulation.
+    Hauptklasse fÃ¼r TIFF-Simulation.
     
     Workflow:
     ---------
@@ -529,7 +605,10 @@ class TIFFSimulator:
         }
     
     def generate_tiff(self, image_size: Tuple[int, int], num_spots: int,
-                     num_frames: int, frame_rate_hz: float) -> np.ndarray:
+                     num_frames: int, frame_rate_hz: float,
+                     d_initial: float = 0.5,
+                     exposure_substeps: int = 1,
+                     enable_photophysics: bool = False) -> np.ndarray:
         """
         Generiert TIFF-Stack.
         
@@ -553,7 +632,7 @@ class TIFFSimulator:
         
         # Initialisiere Trajektorien-Generator
         traj_gen = TrajectoryGenerator(
-            D_initial=4.0,  # Default D_initial
+            D_initial=float(d_initial),
             t_poly_min=self.t_poly_min,
             frame_rate_hz=frame_rate_hz,
             pixel_size_um=self.detector.pixel_size_um
@@ -563,7 +642,30 @@ class TIFFSimulator:
         trajectories = traj_gen.generate_multi_trajectory(
             num_spots, num_frames, image_size
         )
-        
+
+        # Detector-Parameter (Photophysik & z-Begrenzung)
+        meta = self.detector.metadata or {}
+        read_noise_std = float(meta.get("read_noise_std", 1.5))
+        spot_sigma = float(meta.get("spot_intensity_sigma", 0.25))
+        frame_sigma = float(meta.get("frame_jitter_sigma", 0.10))
+        on_mean = float(meta.get("on_mean_frames", 4.0))
+        off_mean = float(meta.get("off_mean_frames", 6.0))
+        bleach_p = float(meta.get("bleach_prob_per_frame", 0.002))
+        z_amp_um = float(meta.get("z_amp_um", 0.7))
+        z_max_um = float(meta.get("z_max_um", 0.6))
+
+        # Photophysik (Blinking & Bleaching)
+        if enable_photophysics:
+            phot = PhotoPhysics(on_mean, off_mean, bleach_p)
+            on_mask = phot.generate_on_mask(num_spots, num_frames)
+        else:
+            on_mask = np.ones((num_spots, num_frames), dtype=bool)
+
+        # Spot-IntensitÃ¤ten (Lognormal-Verteilung)
+        base_intensities = self.detector.max_intensity * np.exp(
+            np.random.normal(0.0, spot_sigma, size=num_spots)
+        )
+
         # Initialisiere TIFF-Stack
         tiff_stack = np.zeros((num_frames, height, width), dtype=np.uint16)
         
@@ -572,31 +674,58 @@ class TIFFSimulator:
             # Background
             frame = self.bg_gen.generate(image_size)
             
-            # Füge jeden Spot hinzu
-            for traj_data in trajectories:
+            # FÃ¼ge jeden Spot hinzu
+            for si, traj_data in enumerate(trajectories):
                 pos = traj_data["positions"][frame_idx]
                 
-                # Konvertiere µm zu Pixel
+                # Konvertiere Âµm zu Pixel
                 x_px = pos[0] / self.detector.pixel_size_um
                 y_px = pos[1] / self.detector.pixel_size_um
-                z_um = pos[2] if self.astigmatism else 0.0
+                z_um = float(pos[2]) if self.astigmatism else 0.0
+                if self.astigmatism:
+                    if z_um > z_max_um:
+                        z_um = z_max_um
+                    elif z_um < -z_max_um:
+                        z_um = -z_max_um
                 
                 # Check ob im Bild
                 if 0 <= x_px < width and 0 <= y_px < height:
-                    # Generiere PSF
-                    psf = self.psf_gen.generate_psf(
-                        x_px, y_px,
-                        self.detector.max_intensity,
-                        z_um,
-                        image_size
-                    )
-                    
-                    frame += psf
+                    # Photophysik: nur wenn Spot an ist
+                    if on_mask[si, frame_idx]:
+                        frame_jitter = float(np.exp(np.random.normal(0.0, frame_sigma)))
+                        amp = np.exp(- (z_um / z_amp_um) ** 2) if self.astigmatism else 1.0
+                        intensity = base_intensities[si] * frame_jitter * amp
+                        # Motion-Blur: mehrere Substeps pro Belichtung
+                        substeps = max(int(exposure_substeps), 1)
+                        if frame_idx > 0 and substeps > 1:
+                            prev = traj_data["positions"][frame_idx-1]
+                        else:
+                            prev = traj_data["positions"][frame_idx]
+                        for ss in range(substeps):
+                            if frame_idx > 0 and substeps > 1:
+                                frac = (ss + 0.5) / substeps
+                                px = prev[0] + frac * (pos[0] - prev[0])
+                                py = prev[1] + frac * (pos[1] - prev[1])
+                                pz = prev[2] + frac * (pos[2] - prev[2]) if self.astigmatism else 0.0
+                            else:
+                                px, py, pz = pos[0], pos[1], z_um
+                            psf = self.psf_gen.generate_psf(
+                                px / self.detector.pixel_size_um,
+                                py / self.detector.pixel_size_um,
+                                intensity / substeps,
+                                float(pz) if self.astigmatism else 0.0,
+                                image_size
+                            )
+                            frame += psf
             
-            # Poisson-Noise (shot noise) – robuste Vorverarbeitung
+            # Poisson-Noise (shot noise) â€“ robuste Vorverarbeitung
             frame = np.nan_to_num(frame, nan=0.0, posinf=1e6, neginf=0.0)
             frame = np.clip(frame, 0, 1e6)
             frame = np.random.poisson(frame)
+            # Kamera-Read-Noise
+            if read_noise_std > 0:
+                frame = frame.astype(float)
+                frame += np.random.normal(0.0, read_noise_std, size=frame.shape)
             
             # Clip & Convert
             tiff_stack[frame_idx] = np.clip(frame, 0, 65535).astype(np.uint16)
@@ -607,6 +736,9 @@ class TIFFSimulator:
             "num_spots": num_spots,
             "num_frames": num_frames,
             "frame_rate_hz": frame_rate_hz,
+            "d_initial": float(d_initial),
+            "exposure_substeps": int(exposure_substeps),
+            "photophysics": bool(enable_photophysics),
             "trajectories": trajectories,
             "psf": self.psf_gen.get_metadata(),
             "diffusion": traj_gen.get_metadata()
@@ -618,7 +750,7 @@ class TIFFSimulator:
                         z_range_um: Tuple[float, float], 
                         z_step_um: float) -> np.ndarray:
         """
-        Generiert z-Stack für Kalibrierung (statische Spots).
+        Generiert z-Stack fÃ¼r Kalibrierung (statische Spots).
         
         Returns:
         --------
@@ -631,7 +763,7 @@ class TIFFSimulator:
         
         height, width = image_size
         
-        # Generiere zufällige, aber STATISCHE Spot-Positionen
+        # Generiere zufÃ¤llige, aber STATISCHE Spot-Positionen
         spot_positions = []
         for _ in range(num_spots):
             x_px = np.random.uniform(0.2 * width, 0.8 * width)
@@ -645,20 +777,29 @@ class TIFFSimulator:
             # Background
             frame = self.bg_gen.generate(image_size)
             
-            # Füge Spots hinzu (immer an gleicher Position!)
+            # FÃ¼ge Spots hinzu (immer an gleicher Position!)
+            # z-abhÃ¤ngige IntensitÃ¤t (Defokus)
+            meta = self.detector.metadata or {}
+            z_amp_um = float(meta.get("z_amp_um", 0.7))
+            amp = np.exp(- (z_um / z_amp_um) ** 2)
             for x_px, y_px in spot_positions:
                 psf = self.psf_gen.generate_psf(
                     x_px, y_px,
-                    self.detector.max_intensity,
+                    self.detector.max_intensity * amp,
                     z_um,
                     image_size
                 )
                 frame += psf
             
-            # Poisson-Noise – robuste Vorverarbeitung
+            # Poisson-Noise â€“ robuste Vorverarbeitung
             frame = np.nan_to_num(frame, nan=0.0, posinf=1e6, neginf=0.0)
             frame = np.clip(frame, 0, 1e6)
             frame = np.random.poisson(frame)
+            # Kamera-Read-Noise
+            read_noise_std = float((self.detector.metadata or {}).get("read_noise_std", 1.5))
+            if read_noise_std > 0:
+                frame = frame.astype(float)
+                frame += np.random.normal(0.0, read_noise_std, size=frame.shape)
             z_stack[z_idx] = np.clip(frame, 0, 65535).astype(np.uint16)
         
         # Update Metadata
@@ -674,7 +815,7 @@ class TIFFSimulator:
         return z_stack
     
     def get_metadata(self) -> Dict:
-        """Gibt alle Metadata zurück"""
+        """Gibt alle Metadata zurÃ¼ck"""
         return self.metadata.copy()
 
 
@@ -710,7 +851,7 @@ def save_tiff(filepath: str, tiff_stack: np.ndarray,
         compression='tiff_deflate'
     )
     
-    print(f"✅ TIFF gespeichert: {filepath}")
+    print(f"âœ… TIFF gespeichert: {filepath}")
     print(f"   Shape: {tiff_stack.shape}")
     print(f"   Dtype: {tiff_stack.dtype}")
     print(f"   Range: [{tiff_stack.min()}, {tiff_stack.max()}]")
@@ -721,7 +862,7 @@ def save_tiff(filepath: str, tiff_stack: np.ndarray,
 # ============================================================================
 
 if __name__ == "__main__":
-    print("🔬 TIFF Simulator V3.0 - Backend Test")
+    print("ðŸ”¬ TIFF Simulator V3.0 - Backend Test")
     print("=" * 50)
     
     # Test: Einfache Simulation
@@ -739,7 +880,10 @@ if __name__ == "__main__":
         frame_rate_hz=20.0
     )
     
-    print(f"\n✅ Test erfolgreich!")
+    print(f"\nâœ… Test erfolgreich!")
     print(f"   TIFF Shape: {tiff.shape}")
     print(f"   Mean Intensity: {tiff.mean():.1f}")
     print(f"   Max Intensity: {tiff.max()}")
+
+
+
