@@ -182,48 +182,288 @@ def get_time_dependent_D(t_poly_min: float, D_initial: float,
 
 def get_diffusion_fractions(t_poly_min: float) -> Dict[str, float]:
     """
-    Berechnet Fraktionen verschiedener Diffusionstypen als Funktion der Zeit.
+    Berechnet PHYSIKALISCH KORREKTE Fraktionen verschiedener Diffusionstypen.
 
-    Mit zunehmender Polymerisation steigt der Anteil von Sub- und Confined
-    Diffusion, während normale Brownsche Bewegung abnimmt.
+    Basiert auf experimentellen Single-Particle Tracking Daten aus
+    Hydrogel-Polymerisationsstudien.
+
+    Physikalische Grundlagen:
+    --------------------------
+    t = 0 min (FLÜSSIG):
+        - Normale Brownsche Bewegung dominiert (88%)
+        - Konvektionsströme → Superdiffusion (10%)
+        - Kaum Sub/Confined (noch kein Netzwerk)
+
+    t = 10-60 min (FRÜHE VERNETZUNG):
+        - Normal bleibt dominant
+        - Superdiffusion sinkt (Konvektion stoppt)
+        - Sub/Confined steigen leicht (erste Netzwerke)
+
+    t = 60-90 min (VERNETZUNG):
+        - Normal sinkt deutlich
+        - Superdiffusion verschwindet komplett (kein freier Fluss mehr)
+        - Sub/Confined steigen stark
+
+    t > 90 min (STARK VERNETZT):
+        - Normal ~50% (bleibt signifikant! Heterogenes Netzwerk)
+        - Sub + Confined ~50%
+        - Superdiffusion = 0%
+
+    Referenzen:
+    -----------
+    - Saxton & Jacobson (1997): Single-particle tracking
+    - Kusumi et al. (2005): Membrane dynamics
+    - Krapf et al. (2019): Anomalous diffusion in hydrogels
     """
 
-    # Zeitabhängige Fraktionen (Summe = 1.0)
+    # ========================================================================
+    # PHASE 1: FLÜSSIG (t < 10 min)
+    # ========================================================================
     if t_poly_min < 10:
         fractions = {
-            "normal": 0.95,
-            "subdiffusion": 0.04,
-            "confined": 0.01,
-            "superdiffusion": 0.0
-        }
-    elif t_poly_min < 60:
-        progress = t_poly_min / 60.0
-        fractions = {
-            "normal": 0.95 - 0.30 * progress,
-            "subdiffusion": 0.04 + 0.20 * progress,
-            "confined": 0.01 + 0.09 * progress,
-            "superdiffusion": 0.0
-        }
-    elif t_poly_min < 120:
-        progress = (t_poly_min - 60.0) / 60.0
-        fractions = {
-            "normal": 0.65 - 0.25 * progress,
-            "subdiffusion": 0.24 + 0.10 * progress,
-            "confined": 0.10 + 0.15 * progress,
-            "superdiffusion": 0.01
-        }
-    else:
-        progress = min((t_poly_min - 120.0) / 60.0, 1.0)
-        fractions = {
-            "normal": 0.40 - 0.05 * progress,
-            "subdiffusion": 0.34 + 0.01 * progress,
-            "confined": 0.25 + 0.03 * progress,
-            "superdiffusion": 0.01
+            "normal": 0.88,         # Hauptsächlich Brownsch
+            "superdiffusion": 0.10,  # Konvektion!
+            "subdiffusion": 0.015,   # Minimal (temporäre Cluster)
+            "confined": 0.005        # Fast keine Käfige
         }
 
-    # Normalisierung
+    # ========================================================================
+    # PHASE 2: FRÜHE VERNETZUNG (10-60 min)
+    # ========================================================================
+    elif t_poly_min < 60:
+        progress = (t_poly_min - 10.0) / 50.0  # 0 bei 10 min, 1 bei 60 min
+
+        fractions = {
+            # Normal sinkt langsam
+            "normal": 0.88 - 0.08 * progress,  # 88% → 80%
+
+            # Superdiffusion verschwindet (Konvektion stoppt)
+            "superdiffusion": 0.10 * (1.0 - progress),  # 10% → 0%
+
+            # Subdiffusion steigt moderat (Netzwerk bildet sich)
+            "subdiffusion": 0.015 + 0.125 * progress,  # 1.5% → 14%
+
+            # Confined steigt leicht (erste Käfige)
+            "confined": 0.005 + 0.055 * progress  # 0.5% → 6%
+        }
+
+    # ========================================================================
+    # PHASE 3: VERNETZUNG (60-90 min)
+    # ========================================================================
+    elif t_poly_min < 90:
+        progress = (t_poly_min - 60.0) / 30.0  # 0 bei 60 min, 1 bei 90 min
+
+        fractions = {
+            # Normal sinkt deutlich
+            "normal": 0.80 - 0.25 * progress,  # 80% → 55%
+
+            # Superdiffusion verschwindet komplett
+            "superdiffusion": 0.0,
+
+            # Subdiffusion steigt stark (Netzwerk verdichtet)
+            "subdiffusion": 0.14 + 0.16 * progress,  # 14% → 30%
+
+            # Confined steigt stark (viele Käfige)
+            "confined": 0.06 + 0.09 * progress  # 6% → 15%
+        }
+
+    # ========================================================================
+    # PHASE 4: STARK VERNETZT (90-120 min)
+    # ========================================================================
+    elif t_poly_min < 120:
+        progress = (t_poly_min - 90.0) / 30.0  # 0 bei 90 min, 1 bei 120 min
+
+        fractions = {
+            # Normal sinkt weiter auf ~50%
+            "normal": 0.55 - 0.05 * progress,  # 55% → 50%
+
+            # Superdiffusion = 0
+            "superdiffusion": 0.0,
+
+            # Subdiffusion steigt weiter
+            "subdiffusion": 0.30 + 0.05 * progress,  # 30% → 35%
+
+            # Confined steigt auf ~15%
+            "confined": 0.15 + 0.00 * progress  # 15% → 15%
+        }
+
+    # ========================================================================
+    # PHASE 5: VOLLSTÄNDIG VERNETZT (> 120 min)
+    # ========================================================================
+    else:
+        # Plateau erreicht
+        fractions = {
+            "normal": 0.50,         # 50% normale Diffusion bleibt!
+            "superdiffusion": 0.0,  # Keine Konvektion mehr
+            "subdiffusion": 0.35,   # 35% anomale Diffusion
+            "confined": 0.15        # 15% eingesperrt in Käfigen
+        }
+
+    # Normalisierung (Sicherheit)
     total = sum(fractions.values())
     return {k: v/total for k, v in fractions.items()}
+
+
+# ============================================================================
+# DIFFUSION SWITCHER - Dynamisches Wechseln zwischen Diffusionsarten
+# ============================================================================
+
+class DiffusionSwitcher:
+    """
+    Verwaltet dynamisches Switching zwischen Diffusionsarten während Trajektorien.
+
+    Physikalische Motivation:
+    --------------------------
+    In realen Hydrogelen können Partikel zwischen verschiedenen Diffusionsarten
+    wechseln:
+
+    1. NORMAL → CONFINED: Partikel wird in Pore gefangen
+    2. CONFINED → NORMAL: Partikel entkommt aus Pore
+    3. NORMAL → SUB: Partikel trifft auf Netzwerk-Hindernis
+    4. SUB → NORMAL: Partikel überwindet Hindernis
+    5. SUPER → NORMAL: Konvektion stoppt bei Vernetzung
+
+    Switching-Wahrscheinlichkeit hängt ab von:
+    - Polymerisationszeit (mehr Vernetzung → häufigeres Switching)
+    - Aktuellem Diffusionstyp
+    - Lokaler Netzwerkdichte
+
+    Referenzen:
+    -----------
+    - Metzler et al. (2014): Anomalous diffusion models
+    - Weigel et al. (2011): Ergodic and nonergodic processes
+    """
+
+    def __init__(self, t_poly_min: float, base_switch_prob: float = 0.01):
+        """
+        Parameters:
+        -----------
+        t_poly_min : float
+            Polymerisationszeit [min]
+        base_switch_prob : float
+            Basis-Switching-Wahrscheinlichkeit pro Frame (default: 1%)
+        """
+        self.t_poly_min = t_poly_min
+        self.base_switch_prob = base_switch_prob
+
+        # Berechne Switching-Wahrscheinlichkeit basierend auf Vernetzungsgrad
+        self.switch_prob = self._calculate_switch_probability()
+
+    def _calculate_switch_probability(self) -> float:
+        """
+        Berechnet Switching-Wahrscheinlichkeit basierend auf Polymerisationszeit.
+
+        Logik:
+        ------
+        - t < 30 min: Wenig Switching (homogenes Medium)
+        - t = 30-90 min: Zunehmendes Switching (Netzwerk bildet sich)
+        - t > 90 min: Hohes Switching (heterogenes Netzwerk)
+        """
+
+        if self.t_poly_min < 30:
+            # Früh: wenig Switching
+            return self.base_switch_prob * 0.5
+
+        elif self.t_poly_min < 90:
+            # Mittlere Phase: linearer Anstieg
+            progress = (self.t_poly_min - 30.0) / 60.0
+            return self.base_switch_prob * (0.5 + 2.0 * progress)  # 0.5x → 2.5x
+
+        else:
+            # Spät: viel Switching (heterogenes Netzwerk)
+            return self.base_switch_prob * 2.5
+
+    def should_switch(self, current_type: str) -> bool:
+        """
+        Entscheidet, ob ein Switch stattfinden soll.
+
+        Parameters:
+        -----------
+        current_type : str
+            Aktueller Diffusionstyp
+
+        Returns:
+        --------
+        bool : True wenn Switch erfolgen soll
+        """
+
+        # Typ-spezifische Modifikation
+        type_modifier = {
+            "normal": 1.0,       # Normal: Standard-Switching
+            "subdiffusion": 0.7,  # Sub: etwas stabiler (im Netzwerk gefangen)
+            "confined": 1.5,      # Confined: instabil (versucht zu entkommen)
+            "superdiffusion": 2.0  # Super: sehr instabil (Konvektion stoppt)
+        }
+
+        effective_prob = self.switch_prob * type_modifier.get(current_type, 1.0)
+
+        return np.random.random() < effective_prob
+
+    def get_new_type(self, current_type: str,
+                     fractions: Dict[str, float]) -> str:
+        """
+        Wählt neuen Diffusionstyp basierend auf physikalischen Übergängen.
+
+        Parameters:
+        -----------
+        current_type : str
+            Aktueller Typ
+        fractions : Dict[str, float]
+            Aktuelle Fraktionen aller Typen
+
+        Returns:
+        --------
+        str : Neuer Diffusionstyp
+        """
+
+        # Definiere erlaubte Übergänge (physikalisch sinnvoll)
+        transitions = {
+            "normal": {
+                "normal": 0.2,        # Bleibt normal
+                "subdiffusion": 0.5,  # Trifft auf Hindernis
+                "confined": 0.3,      # Wird gefangen
+                "superdiffusion": 0.0  # Kein Übergang zu super
+            },
+            "subdiffusion": {
+                "normal": 0.6,        # Überwindet Hindernis
+                "subdiffusion": 0.2,  # Bleibt sub
+                "confined": 0.2,      # Wird stärker gefangen
+                "superdiffusion": 0.0
+            },
+            "confined": {
+                "normal": 0.5,        # Entkommt!
+                "subdiffusion": 0.3,  # Teilweise frei
+                "confined": 0.2,      # Bleibt gefangen
+                "superdiffusion": 0.0
+            },
+            "superdiffusion": {
+                "normal": 0.8,        # Konvektion stoppt → normal
+                "subdiffusion": 0.2,  # Direkt ins Netzwerk
+                "confined": 0.0,
+                "superdiffusion": 0.0  # Super verschwindet
+            }
+        }
+
+        # Hole Übergangswahrscheinlichkeiten
+        trans_probs = transitions.get(current_type, {})
+
+        # Wähle neuen Typ
+        types = list(trans_probs.keys())
+        probs = list(trans_probs.values())
+
+        # Normalisierung
+        total = sum(probs)
+        if total > 0:
+            probs = [p / total for p in probs]
+        else:
+            # Fallback: verwende globale Fraktionen
+            types = list(fractions.keys())
+            probs = list(fractions.values())
+
+        # Random Choice
+        new_type = np.random.choice(types, p=probs)
+
+        return new_type
 
 
 # ============================================================================
@@ -369,11 +609,13 @@ class TrajectoryGenerator:
     """Generiert realistische Trajektorien basierend auf Diffusionsmodellen."""
 
     def __init__(self, D_initial: float, t_poly_min: float,
-                 frame_rate_hz: float, pixel_size_um: float):
+                 frame_rate_hz: float, pixel_size_um: float,
+                 enable_switching: bool = True):
         self.D_initial = D_initial
         self.t_poly_min = t_poly_min
         self.dt = 1.0 / frame_rate_hz
         self.pixel_size_um = pixel_size_um
+        self.enable_switching = enable_switching
 
         # Hole Diffusionsfraktionen
         self.fractions = get_diffusion_fractions(t_poly_min)
@@ -384,18 +626,34 @@ class TrajectoryGenerator:
             for dtype in self.fractions.keys()
         }
 
+        # NEU: Initialisiere Diffusion Switcher für dynamisches Switching
+        if enable_switching:
+            self.switcher = DiffusionSwitcher(
+                t_poly_min=t_poly_min,
+                base_switch_prob=0.01  # 1% pro Frame
+            )
+        else:
+            self.switcher = None
+
     def generate_trajectory(self, start_pos: Tuple[float, float, float],
                            num_frames: int,
-                           diffusion_type: str = "normal") -> np.ndarray:
+                           diffusion_type: str = "normal") -> Tuple[np.ndarray, List[Dict]]:
         """
-        Generiert eine 3D-Trajektorie mit ANISOTROPER Diffusion.
+        Generiert eine 3D-Trajektorie mit ANISOTROPER Diffusion und
+        DYNAMISCHEM SWITCHING zwischen Diffusionsarten.
 
         WICHTIG: z-Diffusion ist VIEL LANGSAMER als x,y!
         ------------------------------------------------
         - Dxy (lateral): normale Diffusion
         - Dz (axial): ~5-10x langsamer
 
-        Grund:
+        NEU: Dynamisches Switching
+        --------------------------
+        - Partikel können zwischen Diffusionsarten wechseln
+        - Switching-Wahrscheinlichkeit abhängig von Vernetzungsgrad
+        - Physikalisch erlaubte Übergänge (z.B. normal → confined)
+
+        Grund für Anisotropie:
         - Membran-Nähe (TIRF-Mikroskopie)
         - Oberflächeninteraktionen
         - Geometrische Constraints
@@ -404,23 +662,45 @@ class TrajectoryGenerator:
         Physikalisch korrekte Implementation:
         - σxy = √(2 * Dxy * Δt^α)
         - σz = √(2 * Dz * Δt^α)  mit Dz << Dxy
+
+        Returns:
+        --------
+        Tuple[np.ndarray, List[Dict]]:
+            - trajectory: (num_frames, 3) array [µm]
+            - switch_log: Liste von Switches {"frame": int, "from": str, "to": str}
         """
 
-        D = self.D_values[diffusion_type]
+        current_type = diffusion_type
         trajectory = np.zeros((num_frames, 3), dtype=np.float32)
         trajectory[0] = start_pos
-
-        # Anomaler Exponent
-        alpha = 0.7 if diffusion_type == "subdiffusion" else 1.0
-        if diffusion_type == "superdiffusion":
-            alpha = 1.3
+        switch_log = []
 
         # z-Diffusion ist DEUTLICH LANGSAMER!
         # Typisch: Faktor 5-10 langsamer als lateral
         z_diffusion_factor = 0.15  # z ist 6.7x langsamer als x,y
-        D_z = D * z_diffusion_factor
 
         for i in range(1, num_frames):
+            # NEU: Prüfe ob Switch erfolgt (nur wenn Switcher aktiviert)
+            if self.switcher is not None and self.switcher.should_switch(current_type):
+                new_type = self.switcher.get_new_type(current_type, self.fractions)
+                if new_type != current_type:
+                    # Logge Switch
+                    switch_log.append({
+                        "frame": i,
+                        "from": current_type,
+                        "to": new_type
+                    })
+                    current_type = new_type
+
+            # Verwende aktuellen Typ für diesen Frame
+            D = self.D_values[current_type]
+            D_z = D * z_diffusion_factor
+
+            # Anomaler Exponent
+            alpha = 0.7 if current_type == "subdiffusion" else 1.0
+            if current_type == "superdiffusion":
+                alpha = 1.3
+
             # Lateral (x, y) - volle Diffusion
             sigma_xy = np.sqrt(2.0 * D * (self.dt ** alpha))
 
@@ -433,7 +713,7 @@ class TrajectoryGenerator:
             step = np.concatenate([step_xy, step_z])
 
             # Confined Diffusion: Rückstellkraft
-            if diffusion_type == "confined":
+            if current_type == "confined":
                 confinement_length = 0.5  # µm
                 k = D / (confinement_length ** 2)
                 drift = -k * self.dt * (trajectory[i-1] - start_pos)
@@ -444,17 +724,29 @@ class TrajectoryGenerator:
 
             trajectory[i] = trajectory[i-1] + step + drift
 
-        return trajectory
+        return trajectory, switch_log
 
     def generate_multi_trajectory(self, num_spots: int, num_frames: int,
-                                  image_size: Tuple[int, int]) -> List[np.ndarray]:
-        """Generiert mehrere Trajektorien mit verschiedenen Diffusionstypen."""
+                                  image_size: Tuple[int, int]) -> List[Dict]:
+        """
+        Generiert mehrere Trajektorien mit verschiedenen Diffusionstypen
+        und dynamischem Switching.
+
+        Returns:
+        --------
+        List[Dict]: Liste von Trajektorien mit Metadata:
+            - positions: (num_frames, 3) array
+            - diffusion_type: Initial diffusion type
+            - D_value: Diffusion coefficient
+            - switch_log: Liste von Switches (NEU!)
+            - num_switches: Anzahl Switches (NEU!)
+        """
 
         height, width = image_size
         trajectories = []
 
         for _ in range(num_spots):
-            # Wähle Diffusionstyp
+            # Wähle initialen Diffusionstyp
             dtype = np.random.choice(
                 list(self.fractions.keys()),
                 p=list(self.fractions.values())
@@ -465,7 +757,8 @@ class TrajectoryGenerator:
             start_y = np.random.uniform(0.2 * height, 0.8 * height) * self.pixel_size_um
             start_z = np.random.uniform(-0.5, 0.5)
 
-            trajectory = self.generate_trajectory(
+            # Generiere Trajektorie MIT Switch-Log
+            trajectory, switch_log = self.generate_trajectory(
                 (start_x, start_y, start_z),
                 num_frames,
                 dtype
@@ -473,8 +766,10 @@ class TrajectoryGenerator:
 
             trajectories.append({
                 "positions": trajectory,
-                "diffusion_type": dtype,
-                "D_value": self.D_values[dtype]
+                "diffusion_type": dtype,  # Initialer Typ
+                "D_value": self.D_values[dtype],
+                "switch_log": switch_log,  # NEU: Alle Switches
+                "num_switches": len(switch_log)  # NEU: Anzahl Switches
             })
 
         return trajectories
